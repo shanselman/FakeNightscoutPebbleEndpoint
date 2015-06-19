@@ -10,16 +10,27 @@ namespace HanselmanBloodSugarMSBand.Controllers
 {
     public class BandController : ApiController
     {
+        double old_sgv = 120; //Default value for mg/dl
+
         public RootObject Get()
         {
             long now = ToEpoch(DateTime.Now);
+
+            object old_sgv_obj = HttpContext.Current.Cache.Get("old_sgv");
+            if (old_sgv_obj != null)
+            {
+                old_sgv = Convert.ToDouble(old_sgv_obj);
+            }
+            
             int sgv = MakeFakeBloodSugarValue();
+
+            int delta = sgv - (int)old_sgv;
 
             RootObject root = new RootObject();
             root.status = new List<Status>();
             root.status.Add(new Status() { now = now } );
             root.bgs = new List<Bg>();
-            root.bgs.Add(new Bg() { datetime = now, sgv = sgv.ToString(), bgdelta = -1, trend = 4, direction = "Flat" });
+            root.bgs.Add(new Bg() { datetime = now, sgv = sgv.ToString(), bgdelta = delta, trend = 4, direction = "Flat" });
 
             return root;
         }
@@ -29,28 +40,22 @@ namespace HanselmanBloodSugarMSBand.Controllers
         change_percent = 2 * volatility * rnd;
         if (change_percent > volatility)
             change_percent -= (2 * volatility);
-        change_amount = old_price * change_percent;
-        new_price = old_price + change_amount; 
+        change_amount = old_sgv * change_percent;
+        new_price = old_sgv + change_amount; 
          */
         private int MakeFakeBloodSugarValue()
         {
             double volatility = 0.03;
-            double old_price = 120; //Default value for mg/dl
-
-            object old_price_obj = HttpContext.Current.Cache.Get("old_price");
-            if (old_price_obj != null)
-            {
-                old_price = Convert.ToDouble(old_price_obj);
-            }
+           
             
             double rnd = new Random().NextDouble();
             double change_percent = 2 * volatility * rnd;
             if (change_percent > volatility)
                 change_percent -= (2 * volatility);
-            double change_amount = old_price * change_percent;
-            double new_price = old_price + change_amount;
+            double change_amount = old_sgv * change_percent;
+            double new_price = old_sgv + change_amount;
 
-            HttpContext.Current.Cache.Insert("old_price", new_price);
+            HttpContext.Current.Cache.Insert("old_sgv", new_price);
             
             return (int)new_price;
         }
